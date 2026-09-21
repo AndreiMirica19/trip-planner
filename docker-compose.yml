@@ -1,8 +1,66 @@
+version: "3.8"
+
+networks:
+  backend-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
 services:
+  # 1. Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: travel_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: secretpass
+      POSTGRES_DB: travel_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d travel_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: travel_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. FastAPI Service
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: travel_api
+    restart: always
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://appuser:secretpass@postgres:5432/travel_db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    networks:
+      - backend-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
