@@ -1,0 +1,8 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: travel_api
+    ports:
+      - "8000:8000"
