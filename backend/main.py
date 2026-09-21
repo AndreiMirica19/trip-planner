@@ -40,14 +40,22 @@ def health_check():
 
 @app.post("/trips", response_model=Trip)
 def create_trip(trip: Trip, db: Session = Depends(get_db)):
-    # 1. Save new trip to Postgres
+    # 1. Save trip to PostgreSQL
     db.add(trip)
     db.commit()
     db.refresh(trip)
 
-    # 2. Invalidate cache so outdated list isn't served
+    # 2. Invalidate cache
     redis_client.delete("trips:all")
-    
+
+    # 3. Push a job to the Redis queue for the background worker
+    task_payload = json.dumps({
+        "trip_id": trip.id,
+        "destination": trip.destination,
+        "title": trip.title
+    })
+    redis_client.rpush("trip_tasks", task_payload)
+
     return trip
 
 
