@@ -47,7 +47,12 @@ jobs:
       - name: Test API Health Endpoint
         run: |
           echo "Testing API endpoint..."
-          curl --fail http://localhost:8000/health || exit 1
+          timeout 30s bash -c '
+            until curl --fail --silent http://localhost:8000/health; do
+              echo "Waiting for API to respond..."
+              sleep 2
+            done
+          '
           echo "API is responsive!"
 
       - name: View Container Logs on Failure
